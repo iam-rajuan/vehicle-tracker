@@ -1,0 +1,207 @@
+<!-- backend/Driver/driver.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Driver Location Sharing</title>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { width: 100%; height: 90vh; }
+  </style>
+</head>
+<body>
+  <h2>Driver Location Sharing</h2>
+  <label for="vehicleId">Vehicle ID:</label>
+  <input type="text" id="vehicleId" placeholder="e.g., vehicle_001" />
+  <button onclick="startSharing()">Start Sharing</button>
+  <div id="map"></div>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiaWFtLXJhanVhbiIsImEiOiJjbTlvNWppdHgwcXFuMmpzMzhjeTJ2cm9hIn0.UXhzpO23v4aouhc4w-kTeA';
+    const socket = io('http://localhost:4000');
+    let watchId;
+    let map;
+    let userMarker = null;
+    let driverMarkers = {};
+    let currentVehicleId = '';
+
+    function initMap() {
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v11',
+        center: [90.4125, 23.8103],
+        zoom: 12
+      });
+    }
+
+    function startSharing() {
+      currentVehicleId = document.getElementById('vehicleId').value.trim();
+      if (!currentVehicleId) {
+        alert("Please enter a vehicle ID");
+        return;
+      }
+
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+
+      // Watch driver's own location
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          socket.emit('locationUpdate', {
+            vehicleId: currentVehicleId,
+            coords: { lat: latitude, lng: longitude }
+          });
+
+          // Update own user marker (blue)
+          const coords = [longitude, latitude];
+          if (!userMarker) {
+            userMarker = new mapboxgl.Marker({ color: 'blue' })
+              .setLngLat(coords)
+              .setPopup(new mapboxgl.Popup().setText('You (Driver)'))
+              .addTo(map);
+            map.flyTo({ center: coords, zoom: 14 });
+          } else {
+            userMarker.setLngLat(coords);
+          }
+        },
+        (err) => {
+          console.error('Geolocation error:', err);
+          alert('Enable location access to share location');
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+
+    // Listen for all location updates
+    socket.on('locationUpdate', ({ vehicleId, coords }) => {
+      const coordsArr = [coords.lng, coords.lat];
+
+      // Ignore updating own red marker (blue already used)
+      if (vehicleId === currentVehicleId) return;
+
+      if (driverMarkers[vehicleId]) {
+        driverMarkers[vehicleId].setLngLat(coordsArr);
+      } else {
+        const marker = new mapboxgl.Marker({ color: 'red' })
+          .setLngLat(coordsArr)
+          .setPopup(new mapboxgl.Popup().setText(`Driver: ${vehicleId}`))
+          .addTo(map);
+        driverMarkers[vehicleId] = marker;
+      }
+    });
+
+    // Init map after page load
+    window.onload = initMap;
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+<!-- red,blue -->
+
+<!-- backend/Driver/Driver.html -->
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Location Sharing</title>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Driver Location Sharing</h1>
+  <label for="vehicleId">Enter Vehicle ID:</label>
+  <input type="text" id="vehicleId" placeholder="e.g., vehicle_123" />
+  <button onclick="startSharing()">Start Sharing</button>
+  <script>
+    const socket = io('http://localhost:4000');
+    let watchId;
+
+    function startSharing() {
+      const vehicleId = document.getElementById('vehicleId').value;
+      if (!vehicleId) {
+        alert("Please enter a vehicle ID");
+        return;
+      }
+
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+
+      watchId = navigator.geolocation.watchPosition(position => {
+        socket.emit('locationUpdate', {
+          vehicleId: vehicleId,
+          coords: {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          }
+        });
+      }, console.error, { enableHighAccuracy: true });
+    }
+  </script>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Location Sender</title>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Driver Location Sharing</h1>
+  <label for="vehicleId">Enter Vehicle ID:</label>
+  <input type="text" id="vehicleId" placeholder="e.g., vehicle_123" />
+  <button onclick="startSharing()">Start Sharing</button>
+  <script>
+    const socket = io('http://localhost:4000');
+    let watchId;
+
+    function startSharing() {
+      const vehicleId = document.getElementById('vehicleId').value;
+      if (!vehicleId) {
+        alert("Please enter a vehicle ID");
+        return;
+      }
+
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+
+      watchId = navigator.geolocation.watchPosition(position => {
+        socket.emit('locationUpdate', {
+          vehicleId: vehicleId,
+          coords: {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          }
+        });
+      }, console.error, { enableHighAccuracy: true });
+    }
+  </script>
+</body>
+</html> -->
